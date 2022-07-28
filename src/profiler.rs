@@ -26,6 +26,7 @@ pub(crate) static PROFILER: Lazy<RwLock<Result<Profiler>>> =
 pub struct Profiler {
     pub(crate) data: Collector<UnresolvedFrames>,
     sample_counter: i32,
+    trace_impl: TraceImpl,
 
     running: bool,
 
@@ -287,11 +288,12 @@ extern "C" fn perf_signal_handler(
             let mut index = 0;
 
             let sample_timestamp: SystemTime = SystemTime::now();
-            TraceImpl::trace(ucontext, |frame| {
-                let ip = Frame::ip(frame);
-                if profiler.is_blocklisted(ip) {
-                    return false;
-                }
+            let trace_impl = &mut profiler.trace_impl;
+            trace_impl.trace(ucontext, |frame| {
+                // let ip = Frame::ip(frame);
+                // if profiler.is_blocklisted(ip) {
+                //     return false;
+                // }
 
                 if index < MAX_DEPTH {
                     bt.push(frame.clone());
@@ -320,6 +322,7 @@ impl Profiler {
             data: Collector::new()?,
             sample_counter: 0,
             running: false,
+            trace_impl: TraceImpl::default(),
 
             #[cfg(all(any(target_arch = "x86_64", target_arch = "aarch64")))]
             blocklist_segments: Vec::new(),
